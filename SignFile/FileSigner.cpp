@@ -4,8 +4,6 @@
 #include <thread>
 #include <boost\crc.hpp>
 
-#include "FileReader.h"
-
 #define MAX_ARRAY_SIZE	0x7fffffff		// максимальный размер массива, который может выделить new
 #define MEGABYTE		(1*1024*1024)	// мегабайт в байтах
 #define CRC8_POLYNOM	0x3a			// полином для расчета crc
@@ -44,7 +42,15 @@ void FileSigner::SetBlockSize(size_t nBlockSize)
 void FileSigner::SignFile(const char *pFileName,
 	const char *pSignFileName)
 {
-	thread readThread = thread(ReadThread, this, pFileName);
+	m_fileReader.open(pFileName, ios::binary | ios::in);
+	if (!m_fileReader.is_open())
+		throw logic_error(string("Can't open file ") + pFileName);
+
+	m_signWriter.open(pSignFileName, ios::binary | ios::out);
+	if(!m_signWriter.is_open())
+		throw logic_error(string("Can't open file ") + pSignFileName);
+
+	thread readThread = thread(ReadThread, this);
 	
 	// Запускаются потоки хеширования
 	vector< thread > threads;
@@ -52,13 +58,16 @@ void FileSigner::SignFile(const char *pFileName,
 	for (thread &thr : threads)
 		thr = thread(HashThread, this);
 
-	thread writeThread(WriteThread, this, pSignFileName);
+	thread writeThread(WriteThread, this);
 
 	// Ждем пока не закончится чтение файла
 	if (readThread.joinable())
 		readThread.join();
 
-	// Добавляем еще оин поток хеширования
+	m_fileReader.close();
+	m_dataQueue.Stop();
+
+	// Добавляем еще один поток хеширования
 	threads.push_back(thread(HashThread, this));
 
 	// Ожидаем завершения всех потоков на хеширование
@@ -72,19 +81,15 @@ void FileSigner::SignFile(const char *pFileName,
 	// Ождаем завершения потока записи
 	if(writeThread.joinable())
 		writeThread.join();
+
+	m_signWriter.close();
 }
 
-void FileSigner::ReadThread(FileSigner *pFileSigner, const char *pFileName)
+void FileSigner::ReadThread(FileSigner *pFileSigner)
 {
-	FileReader fileReader;
-	fileReader.open(pFileName, ios::binary | ios::in);
-
-	if (!fileReader.is_open())
-		throw logic_error(string("Can't open file ") + pFileName);
-
 	size_t nMaxBlockCount = pFileSigner->m_nThreads * pFileSigner->m_nBlocksPerThread;
 
-	while (!fileReader.eof())
+	while (!pFileSigner->m_fileReader.eof())
 	{
 		// Если в очереди есть место, то читаем еще один блок
 		size_t nQueueSize = pFileSigner->m_dataQueue.Size();
@@ -98,7 +103,7 @@ void FileSigner::ReadThread(FileSigner *pFileSigner, const char *pFileName)
 			catch (bad_alloc &e)
 			{
 				// не удалось выделить память даже под первый блок
-				if (fileReader.NextBolockId() == 0)
+				if (pFileSigner->m_fileReader.NextBolockId() == 0)
 					throw e;
 
 				// уменьшаем максимальное количество блоков, чтобы уменьшить вероятность этого исключения
@@ -112,10 +117,10 @@ void FileSigner::ReadThread(FileSigner *pFileSigner, const char *pFileName)
 			}
 
 			DataBlock dataBlock(-1, pData, pFileSigner->m_nBlockSize);
-			fileReader >> dataBlock;
+			pFileSigner->m_fileReader >> dataBlock;
 			
-			if (fileReader.eof())
-				if (fileReader.IsLastBlockEmpty())
+			if (pFileSigner->m_fileReader.eof())
+				if (pFileSigner->m_fileReader.IsLastBlockEmpty())
 					break;
 
 			pFileSigner->m_dataQueue.Push(dataBlock);
@@ -127,21 +132,12 @@ void FileSigner::ReadThread(FileSigner *pFileSigner, const char *pFileName)
 				pFileSigner->HashBlock(dataBlock);
 		}
 	}
-	fileReader.close();
-	pFileSigner->m_dataQueue.Stop();
 }
 
-void FileSigner::WriteThread(FileSigner *pFileSigner, const char *pFileName)
+void FileSigner::WriteThread(FileSigner *pFileSigner)
 {
-	ofstream signFile(pFileName, ios::binary | ios::out);
-
-	if (!signFile.is_open())
-		throw logic_error(string("Can't open file ") + pFileName);
-
 	while (pFileSigner->m_hashQueue.WaitForNextHash())
-		signFile << pFileSigner->m_hashQueue.Pop();
-	
-	signFile.close();
+		pFileSigner->m_signWriter << pFileSigner->m_hashQueue.Pop();
 }
 
 void FileSigner::HashThread(FileSigner *pFileSigner)

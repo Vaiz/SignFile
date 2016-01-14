@@ -1,6 +1,8 @@
 #pragma once
 
 #include <map>			// map
+#include <fstream>
+#include "FileReader.h"
 #include "DataQueue.h"
 #include "HashQueue.h"
 
@@ -40,20 +42,18 @@ private:
 	//************************************
 	// Access:		private static 
 	// Parameter:	FileSigner * pFileSigner
-	// Parameter:	const char * pFileName - путь к файлу для хеширования
 	// Description:	поток чтения файла, при заполнении очереди хеширует один блок
 	// Exceptions:	logic_error
 	//************************************
-	static void ReadThread(FileSigner *pFileSigner, const char *pFileName);
+	static void ReadThread(FileSigner *pFileSigner);
 
 	//************************************
 	// Access:		private static
 	// Parameter:	FileSigner * fileSigner
-	// Parameter:	const char * signFileName - путь к файлу, в который будет записана сигнатура
 	// Description:	поток записи хеша в файл
 	// Exceptions:	logic_error
 	//************************************
-	static void WriteThread(FileSigner *pFileSigner, const char *pSignFileName);
+	static void WriteThread(FileSigner *pFileSigner);
 
 	//************************************
 	// Access:		private static
@@ -71,6 +71,9 @@ private:
 	void HashBlock(DataBlock &);
 
 private:
+	FileReader m_fileReader;	// поток чтения файла
+	std::ofstream m_signWriter;		// поток записи подписи
+
 	size_t m_nThreads;			// количество потоков
 	size_t m_nBlocksPerThread;	// количество блоков в очереди на один поток, используется для расчета максимального размера очереди
 	size_t m_nBlockSize;		// размер одного блока
