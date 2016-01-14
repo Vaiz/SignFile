@@ -1,0 +1,12 @@
+*.suo
+
+*.sdf
+
+*.zip
+
+*.user
+
+*.obj
+
+x64/
+ipch/
