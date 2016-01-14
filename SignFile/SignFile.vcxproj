@@ -150,6 +150,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DataBlock.h" />
+    <ClInclude Include="DataBlocksPool.h" />
     <ClInclude Include="DataQueue.h" />
     <ClInclude Include="FileReader.h" />
     <ClInclude Include="FileSigner.h" />
@@ -159,6 +160,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DataBlock.cpp" />
+    <ClCompile Include="DataBlocksPool.cpp" />
     <ClCompile Include="DataQueue.cpp" />
     <ClCompile Include="FileReader.cpp" />
     <ClCompile Include="FileSigner.cpp" />

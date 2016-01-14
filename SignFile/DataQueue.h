@@ -3,6 +3,7 @@
 #include <queue>				
 #include <condition_variable>
 #include <mutex>
+#include <memory>	// shared_ptr
 #include "DataBlock.h"
 
 class DataQueue
@@ -16,7 +17,7 @@ public:
 	// Parameter:	const DataBlock & dataBlock - ссылка на объект, который будет добавлен в очередь
 	// Description:	добавляет блок с данными в очередь
 	//************************************
-	void Push(const DataBlock &dataBlock);
+	void Push(const std::shared_ptr< DataBlock > dataBlock);
 
 	//************************************
 	// Access:		public 
@@ -38,7 +39,7 @@ public:
 	// Parameter:	DataBlock & dataBlock - ссылка на объект, в который будет записан блок из очереди
 	// Description:	забирает блок с данными из очереди
 	//************************************
-	bool Pop(DataBlock &dataBlock);
+	std::shared_ptr< DataBlock > Pop();
 
 	//************************************
 	// Access:		public 
@@ -47,7 +48,7 @@ public:
 	void Stop();
 
 private:
-	std::queue< DataBlock > m_queue;	// очередь, хранящая блоки с данными
+	std::queue< std::shared_ptr< DataBlock > > m_queue;	// очередь, хранящая блоки с данными
 	std::condition_variable m_condVar;	// условная переменная, для ожидания появления нового блока
 	std::mutex m_mutex;					// мьютекс, отвечающий за доступ к полям класса
 	bool m_bDone;						// флаг, сигнализирующий о том, что новых блоков не будет

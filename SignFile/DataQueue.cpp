@@ -13,7 +13,7 @@ DataQueue::~DataQueue()
 	Stop();
 }
 
-void DataQueue::Push(const DataBlock &dataBlock)
+void DataQueue::Push(const std::shared_ptr< DataBlock > dataBlock)
 {
 	std::unique_lock< mutex > lock(m_mutex);
 	m_queue.push(dataBlock);
@@ -38,16 +38,18 @@ bool DataQueue::WaitForNextBlock()
 	return true;
 }
 
-bool DataQueue::Pop(DataBlock &dataBlock)
+std::shared_ptr< DataBlock > DataQueue::Pop()
 {
 	std::unique_lock< mutex > lock(m_mutex);
+	std::shared_ptr< DataBlock > dataBlock;
 
-	if (m_queue.empty())
-		return false;
+	if (!m_queue.empty())
+	{
+		dataBlock = m_queue.front();
+		m_queue.pop();
+	}
 
-	dataBlock = m_queue.front();
-	m_queue.pop();
-	return true;
+	return dataBlock;
 }
 
 void DataQueue::Stop()

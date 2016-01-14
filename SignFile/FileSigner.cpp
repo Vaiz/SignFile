@@ -12,7 +12,7 @@ using namespace std;
 
 FileSigner::FileSigner()
 	: m_nThreads(2)
-	, m_nBlocksPerThread(4)
+	, m_nBlocksPerThread(2)
 	, m_nBlockSize(MEGABYTE)
 {
 }
@@ -49,6 +49,10 @@ void FileSigner::SignFile(const char *pFileName,
 	m_signWriter.open(pSignFileName, ios::binary | ios::out);
 	if(!m_signWriter.is_open())
 		throw logic_error(string("Can't open file ") + pSignFileName);
+
+	m_pDataBlocksPool.reset(new DataBlocksPool(m_nBlockSize, m_nBlocksPerThread * m_nThreads));
+	if(m_pDataBlocksPool->IsBadAllocReceived())
+		throw logic_error("Can't allocate even single block");
 
 	thread readThread = thread(ReadThread, this);
 	
@@ -87,48 +91,28 @@ void FileSigner::SignFile(const char *pFileName,
 
 void FileSigner::ReadThread(FileSigner *pFileSigner)
 {
-	size_t nMaxBlockCount = pFileSigner->m_nThreads * pFileSigner->m_nBlocksPerThread;
-
 	while (!pFileSigner->m_fileReader.eof())
 	{
-		// Если в очереди есть место, то читаем еще один блок
-		size_t nQueueSize = pFileSigner->m_dataQueue.Size();
-		if (nQueueSize < nMaxBlockCount)
+		bool bReadBlock = pFileSigner->m_pDataBlocksPool->HasFreeBlock()
+			|| (!pFileSigner->m_pDataBlocksPool->IsBadAllocReceived() && !pFileSigner->m_pDataBlocksPool->IsMaxBlocksCountReached())
+			|| pFileSigner->m_dataQueue.Size() == 0
+			|| pFileSigner->m_pDataBlocksPool->BlocksCount() <= pFileSigner->m_nThreads;
+
+		if(bReadBlock)
 		{
-			shared_ptr< char > pData;
-			try
-			{
-				pData.reset(new char[pFileSigner->m_nBlockSize], default_delete<char[]>());
-			}
-			catch (bad_alloc &e)
-			{
-				// не удалось выделить память даже под первый блок
-				if (pFileSigner->m_fileReader.NextBolockId() == 0)
-					throw e;
-
-				// уменьшаем максимальное количество блоков, чтобы уменьшить вероятность этого исключения
-				nMaxBlockCount = nQueueSize;
-
-				// хотя бы под один блок память уже выделена, поэтому будем пытаться добавлять по одному блоку
-				if (0 == nMaxBlockCount)
-					nMaxBlockCount = 1;
-
-				continue;
-			}
-
-			DataBlock dataBlock(-1, pData, pFileSigner->m_nBlockSize);
-			pFileSigner->m_fileReader >> dataBlock;
+			shared_ptr<	DataBlock > dataBlock = pFileSigner->m_pDataBlocksPool->Acquire();
 			
+			pFileSigner->m_fileReader >> *dataBlock;
 			if (pFileSigner->m_fileReader.eof())
 				if (pFileSigner->m_fileReader.IsLastBlockEmpty())
 					break;
 
 			pFileSigner->m_dataQueue.Push(dataBlock);
 		}
-		else // если же в очереди нет мест, то хешируем один блок, чтобы поток не простаивал
+		else // если же мы не можем прочитать блок, то хешируем один блок, чтобы поток не простаивал
 		{
-			DataBlock dataBlock;
-			if (pFileSigner->m_dataQueue.Pop(dataBlock))
+			shared_ptr<	DataBlock > dataBlock = pFileSigner->m_dataQueue.Pop();
+			if (dataBlock)
 				pFileSigner->HashBlock(dataBlock);
 		}
 	}
@@ -143,18 +127,19 @@ void FileSigner::WriteThread(FileSigner *pFileSigner)
 void FileSigner::HashThread(FileSigner *pFileSigner)
 {
 	while (pFileSigner->m_dataQueue.WaitForNextBlock())
-	{
-		DataBlock dataBlock;
-		if(pFileSigner->m_dataQueue.Pop(dataBlock))
-			pFileSigner->HashBlock(dataBlock);
-	}
+		pFileSigner->HashBlock(pFileSigner->m_dataQueue.Pop());
 }
 
-void FileSigner::HashBlock(DataBlock &rDataBlock)
+void FileSigner::HashBlock(std::shared_ptr< DataBlock > pDataBlock)
 {
+	if (!pDataBlock)
+		return;
+
 	boost::crc_basic<8> crc(CRC8_POLYNOM);
-	crc.process_bytes(rDataBlock.GetDataPtr().get(), rDataBlock.GetBlockSize());
+	crc.process_bytes(pDataBlock->GetDataPtr().get(), pDataBlock->GetBlockSize());
 
 	char hashByte = crc.checksum();
-	m_hashQueue.Push(make_pair(rDataBlock.GetId(), hashByte));
+	m_hashQueue.Push(make_pair(pDataBlock->GetId(), hashByte));
+
+	m_pDataBlocksPool->Release(pDataBlock);
 }

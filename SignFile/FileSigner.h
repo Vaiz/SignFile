@@ -2,9 +2,11 @@
 
 #include <map>			// map
 #include <fstream>
+#include <memory>		// unique_ptr
 #include "FileReader.h"
 #include "DataQueue.h"
 #include "HashQueue.h"
+#include "DataBlocksPool.h"
 
 class FileSigner
 {
@@ -68,7 +70,7 @@ private:
 	// Parameter:	DataBlock & - блок, для кторого необходимо вычислить хеш
 	// Description:	вычисляет хеш блока и добавляет его в m_hashQueue
 	//************************************
-	void HashBlock(DataBlock &);
+	void HashBlock(std::shared_ptr< DataBlock >);
 
 private:
 	FileReader m_fileReader;	// поток чтения файла
@@ -80,5 +82,6 @@ private:
 	
 	DataQueue m_dataQueue;	// очередь блоков на хеширование
 	HashQueue m_hashQueue;	// очередь хешей на запись в файл
+	std::unique_ptr< DataBlocksPool > m_pDataBlocksPool;
 };
 
