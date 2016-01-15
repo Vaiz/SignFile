@@ -2,7 +2,7 @@
 
 #include <map>			// map
 #include <fstream>
-#include <memory>		// unique_ptr
+#include <memory>		// shared_ptr
 #include "FileReader.h"
 #include "DataQueue.h"
 #include "HashQueue.h"
@@ -85,6 +85,6 @@ private:
 	
 	DataQueue m_dataQueue;	// очередь блоков на хеширование
 	HashQueue m_hashQueue;	// очередь хешей на запись в файл
-	std::unique_ptr< DataBlocksPool > m_pDataBlocksPool;	// отвечает за выделение памяти под блоки
+	std::shared_ptr< DataBlocksPool > m_pDataBlocksPool;	// отвечает за выделение памяти под блоки
 };
 

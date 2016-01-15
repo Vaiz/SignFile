@@ -90,16 +90,18 @@ void FileSigner::SignFile(const char *pFileName,
 
 void FileSigner::ReadThread(FileSigner *pFileSigner)
 {
+	std::shared_ptr< DataBlocksPool > &pool = pFileSigner->m_pDataBlocksPool; // для упрощения записей
+
 	while (!pFileSigner->m_fileReader.eof())
 	{
-		bool bReadBlock = pFileSigner->m_pDataBlocksPool->HasFreeBlock()
-			|| (!pFileSigner->m_pDataBlocksPool->IsBadAllocReceived() && !pFileSigner->m_pDataBlocksPool->IsMaxBlocksCountReached())
+		bool bReadBlock = pool->HasFreeBlock()
+			|| (!pool->IsBadAllocReceived() && !pool->IsMaxBlocksCountReached())
 			|| pFileSigner->m_dataQueue.Size() == 0
-			|| pFileSigner->m_pDataBlocksPool->BlocksCount() <= pFileSigner->m_nThreads;
+			|| pool->BlocksCount() <= pFileSigner->m_nThreads;
 
 		if(bReadBlock)
 		{
-			shared_ptr<	DataBlock > dataBlock = pFileSigner->m_pDataBlocksPool->Acquire();
+			shared_ptr<	DataBlock > dataBlock = pool->Acquire();
 			
 			pFileSigner->m_fileReader >> *dataBlock;
 			if (pFileSigner->m_fileReader.eof())
