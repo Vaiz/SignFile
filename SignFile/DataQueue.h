@@ -14,7 +14,8 @@ public:
 		
 	//************************************
 	// Access:		public 
-	// Parameter:	const DataBlock & dataBlock - ссылка на объект, который будет добавлен в очередь
+	// Parameter:	const std::shared_ptr< DataBlock > dataBlock - указатель на блок, 
+	//				который будет добавлен в очередь
 	// Description:	добавляет блок с данными в очередь
 	//************************************
 	void Push(const std::shared_ptr< DataBlock > dataBlock);
@@ -35,9 +36,8 @@ public:
 
 	//************************************
 	// Access:		public 
-	// Returns:		bool - возвращает true, ели удалось получить блок
-	// Parameter:	DataBlock & dataBlock - ссылка на объект, в который будет записан блок из очереди
-	// Description:	забирает блок с данными из очереди
+	// Returns:		std::shared_ptr< DataBlock > - указатель на следующий блок из очереди,
+	//				если очередь пуста, то указатель будет нулевым
 	//************************************
 	std::shared_ptr< DataBlock > Pop();
 

@@ -67,13 +67,14 @@ private:
 
 	//************************************
 	// Access:		private 
-	// Parameter:	DataBlock & - блок, для кторого необходимо вычислить хеш
+	// Parameter:	std::shared_ptr< DataBlock > - указатель на блок, 
+	//				для которого необходимо вычислить хеш
 	// Description:	вычисляет хеш блока и добавляет его в m_hashQueue
 	//************************************
 	void HashBlock(std::shared_ptr< DataBlock >);
 
 private:
-	FileReader m_fileReader;	// поток чтения файла
+	FileReader m_fileReader;		// поток чтения файла
 	std::ofstream m_signWriter;		// поток записи подписи
 
 	size_t m_nThreads;			// количество потоков
@@ -82,6 +83,6 @@ private:
 	
 	DataQueue m_dataQueue;	// очередь блоков на хеширование
 	HashQueue m_hashQueue;	// очередь хешей на запись в файл
-	std::unique_ptr< DataBlocksPool > m_pDataBlocksPool;
+	std::unique_ptr< DataBlocksPool > m_pDataBlocksPool;	// отвечает за выделение памяти под блоки
 };
 
