@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <thread>
+#include <limits.h>
 #include "FileSigner.h"
 
 using namespace std;
@@ -28,7 +29,14 @@ int main(int argc, char **argv)
 	try
 	{
 		if (argc == 4)
-			fileSigner.SetBlockSize(atoi(argv[3]));
+		{
+			long int nBlockSize = strtol(argv[3], 0, 10);
+			
+			if (0 != errno || nBlockSize > MAX_ARRAY_SIZE || nBlockSize <= 0)
+				throw logic_error(string("Wrong argument '" ) + argv[3] + "'. BlockSize range: 1 - 2147483647");
+
+			fileSigner.SetBlockSize(nBlockSize);
+		}
 
 		cout << "Start time: ";
 		system("time /t");

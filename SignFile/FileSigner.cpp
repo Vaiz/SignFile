@@ -4,7 +4,6 @@
 #include <thread>
 #include <boost\crc.hpp>
 
-#define MAX_ARRAY_SIZE	0x7fffffff		// максимальный размер массива, который может выделить new
 #define MEGABYTE		(1*1024*1024)	// мегабайт в байтах
 #define CRC8_POLYNOM	0x3a			// полином для расчета crc
 
@@ -32,7 +31,7 @@ void FileSigner::SetThreadCount(size_t nThreads)
 void FileSigner::SetBlockSize(size_t nBlockSize)
 {
 	if (nBlockSize > MAX_ARRAY_SIZE)
-		throw invalid_argument("Block size can't be more then 0x7fffffff");
+		throw invalid_argument("Block size can't be more then 2147483647");
 	if (0 == nBlockSize)
 		throw invalid_argument("Block size can't be 0");
 

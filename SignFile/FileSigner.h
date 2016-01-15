@@ -8,6 +8,8 @@
 #include "HashQueue.h"
 #include "DataBlocksPool.h"
 
+#define MAX_ARRAY_SIZE	0x7fffffff		// максимальный размер массива, который может выделить new
+
 class FileSigner
 {
 public:
